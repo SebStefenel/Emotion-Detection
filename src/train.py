@@ -118,7 +118,27 @@ def main():
 
         if test_acc > best_acc:
             best_acc = test_acc
-            torch.save(model.state_dict(), best_model_path)
+            # Save via a temporary file (in system temp dir) to avoid macOS copy/rename issues.
+            import tempfile, shutil, os
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp_file:
+                tmp_path = Path(tmp_file.name)
+            torch.save(model.state_dict(), tmp_path)
+            best_model_path.parent.mkdir(parents=True, exist_ok=True)
+            if best_model_path.exists():
+                try:
+                    best_model_path.unlink()
+                except Exception:
+                    pass
+            shutil.copyfile(tmp_path, best_model_path)
+            try:
+                tmp_path.unlink()
+            except FileNotFoundError:
+                pass
+            try:
+                os.chmod(best_model_path, 0o644)
+            except Exception:
+                pass
+
             print(f"Saved new best model to {best_model_path} (acc={best_acc:.4f})")
 
     print(f"Training complete. Best test accuracy: {best_acc:.4f}")

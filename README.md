@@ -1,70 +1,68 @@
-# Facial Emotion Recognition (PyTorch)
+# Facial Emotion Recognition (PyTorch, ImageFolder)
 
-End-to-end facial emotion recognition using a FER-style dataset organized in `train`/`test` folders. The project includes training, evaluation, a real-time webcam demo, and a Streamlit web app.
+End‑to‑end facial emotion recognition using a folder‑based FER dataset. Includes training, evaluation, webcam demo, and a Streamlit UI.
 
-## Project Structure
+## Dataset layout
+Place data under `data/archive`:
 ```
-emotion-detection/
-├── data/
-│   └── archive/
-│       ├── train/
-│       │   ├── angry/ ...
-│       └── test/
-│           ├── angry/ ...
-├── src/
-│   ├── dataloader.py
-│   ├── model.py
-│   ├── train.py
-│   ├── evaluate.py
-│   └── realtime.py
-├── app/
-│   └── app.py
-├── saved_models/
-│   └── best_model.pth   # created after training
-├── results/
-│   └── confusion_matrix.png (created by evaluate.py)
-├── requirements.txt
-└── README.md
+data/archive/
+  train/
+    angry/ disgust/ fear/ happy/ neutral/ sad/ surprise/
+  test/
+    angry/ disgust/ fear/ happy/ neutral/ sad/ surprise/
 ```
+Classes are inferred from folder names; images are resized to 48×48 grayscale.
 
-## Setup
-1. Ensure the dataset is placed at `data/archive/train` and `data/archive/test` with class subfolders (`angry`, `disgust`, `fear`, `happy`, `neutral`, `sad`, `surprise`).
-2. Create and activate a virtual environment (optional).
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Training
-Run from the project root:
+## Quick start
+From the repo root:
 ```bash
-python src/train.py --epochs 25 --batch_size 64 --lr 1e-3 --num_workers 4
-```
-Optional: `--data_dir` to point to a custom dataset root and `--save_dir` to choose another output folder. The best weights are saved to `saved_models/best_model.pth`.
+# install deps (macOS/arm; adjust python path if needed)
+/opt/homebrew/bin/python3.11 -m pip install --user --break-system-packages -r requirements.txt
 
-## Evaluation
-```bash
-python src/evaluate.py --num_workers 4
-```
-Optional flags: `--data_dir` for a custom dataset location and `--checkpoint` for a custom weights path. Outputs accuracy, precision/recall/F1, and saves `results/confusion_matrix.png`.
+# train (CPU or GPU if available)
+PYTHONPATH="$(pwd)/.local-packages:$PYTHONPATH" \
+/opt/homebrew/bin/python3.11 src/train.py --epochs 25 --batch_size 64 --lr 1e-3 --num_workers 0
 
-## Real-Time Webcam Demo
-```bash
-python src/realtime.py
+# evaluate (writes results/confusion_matrix.png)
+PYTHONPATH="$(pwd)/.local-packages:$PYTHONPATH" \
+/opt/homebrew/bin/python3.11 src/evaluate.py --data_dir data/archive --checkpoint saved_models/best_model.pth
 ```
-Requires a webcam. Press `q` to quit.
+If you saved the checkpoint to `/tmp/best_model.pth`, point `--checkpoint` there or copy it into `saved_models/`.
 
-## Streamlit App
+## Commands (common options)
+- `src/train.py`: `--epochs`, `--batch_size`, `--lr`, `--num_workers`, `--data_dir`, `--save_dir`
+- `src/evaluate.py`: `--data_dir`, `--checkpoint`, `--num_workers`
+- `src/realtime.py`: runs webcam Haar-cascade detection + model inference; press `q` to quit.
+- `app/app.py`: Streamlit UI for image upload; faces are auto-detected and labeled.
+
+## Streamlit
 ```bash
-streamlit run app/app.py
+PYTHONPATH="$(pwd)/.local-packages:$PYTHONPATH" \
+/opt/homebrew/bin/python3.11 -m streamlit run app/app.py
 ```
-Upload an image to detect faces and view predicted emotions with probabilities.
+Upload an image to see detected faces, predicted emotions, and probability bars.
+
+## Troubleshooting
+- If pip refuses to write to `~/Library/Python/...`, add `--user --break-system-packages` (as above) or install to a local target: `--target "$(pwd)/.local-packages"`.
+- If saving checkpoints under `saved_models/` fails on macOS, use `--save_dir /tmp` and then copy `/tmp/best_model.pth` into `saved_models/`.
+- For DataLoader shared-memory issues on macOS, set `--num_workers 0`.
+
+## Project structure
+```
+src/
+  dataloader.py   # ImageFolder loaders with grayscale/normalize transforms
+  model.py        # CNN (4 conv blocks + FC classifier)
+  train.py        # training loop with tqdm and best-model saving
+  evaluate.py     # metrics + confusion matrix plot to results/
+  realtime.py     # webcam demo with Haar cascade
+app/
+  app.py          # Streamlit app for uploads and predictions
+saved_models/     # best_model.pth (created after training)
+results/          # confusion_matrix.png (created after evaluation)
+requirements.txt
+```
 
 ## Notes
-- Training uses grayscale 48×48 inputs normalized to mean 0.5 and std 0.5.
-- GPU is used automatically when available.
-- Replace `saved_models/best_model.pth` with your own trained weights if needed.
-
-## Example Outputs
-- Confusion matrix: `results/confusion_matrix.png` (generated after evaluation).
-- Annotated images appear in the Streamlit UI; webcam overlays appear in the live feed.
+- Normalization: mean=0.5, std=0.5 on grayscale 48×48 images.
+- Uses Adam + CrossEntropyLoss; training defaults to 25 epochs, batch size 64.
+- GPU is used automatically if available.***

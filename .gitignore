@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Data and artifacts
+data/
+saved_models/
+results/
+.local-packages
+
+# OS files
+.DS_Store
